@@ -70,7 +70,7 @@ async def _setup_scene(client, app, with_prop=False):
     )
     scene_id = scene_resp.json()["id"]
 
-    app.state.settings.nvidia_api_key = "test-key"
+    app.state.settings.gemini_api_key = "test-key"
     return auth, project_id, screenplay_id, scene_id, char_id, prop_id
 
 
@@ -78,7 +78,7 @@ def _stub_call_model(monkeypatch):
     class Stub:
         calls = 0
 
-        async def __call__(self, client, nodes):
+        async def __call__(self, client, nodes, scene):
             Stub.calls += 1
             return [dict(CANDIDATE)]
 
@@ -137,7 +137,7 @@ class TestAiSuggest:
 
     async def test_ai_suggest_no_api_key_503(self, client, app):
         auth, _project_id, _screenplay_id, scene_id, _char_id, _ = await _setup_scene(client, app)
-        app.state.settings.nvidia_api_key = ""
+        app.state.settings.gemini_api_key = ""
 
         resp = await client.post(
             f"/api/scenes/{scene_id}/ai-suggest", headers=csrf_headers(auth["csrf"])
@@ -295,7 +295,7 @@ class TestSuggestionReject:
 class TestAutoAnalyze:
     async def test_auto_analyze_on_scene_create(self, client, app, monkeypatch):
         stub = _stub_call_model(monkeypatch)
-        app.state.settings.nvidia_api_key = "test-key"
+        app.state.settings.gemini_api_key = "test-key"
         auth = await register(client)
         proj = await client.post(
             "/api/projects", json={"title": "Test Project"}, headers=csrf_headers(auth["csrf"])

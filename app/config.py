@@ -5,8 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     database_url: str
-    nvidia_api_key: str = ""
-    ai_base_url: str = "https://integrate.api.nvidia.com/v1"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.6-flash"
     sentry_dsn: str = ""
     session_cookie_secure: bool = False
     cors_origins: str = "http://localhost:3000"

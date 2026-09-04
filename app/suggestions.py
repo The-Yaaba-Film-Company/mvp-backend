@@ -74,7 +74,7 @@ async def run_ai_analysis(
 ):
     scene = await _get_scene_with_auth(scene_id, principal, db, "editor")
     settings = request.app.state.settings
-    if not settings.nvidia_api_key:
+    if not settings.gemini_api_key:
         raise HTTPException(status_code=503, detail="AI not configured.")
 
     created = await run_ai_suggestions(settings, db, scene)

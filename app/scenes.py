@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app import models
 from app.ai import auto_analyze
+from app.content_order import extract_order, reconcile_order, sort_content_by_order
 from app.content_validator import (
     ContentValidationError,
     compute_content_hash,
@@ -80,6 +81,9 @@ async def _assign_post_lock_number(
 
 
 def _scene_out(scene: Scene) -> SceneOut:
+    content = scene.content
+    if scene.node_order:
+        content = sort_content_by_order(content, scene.node_order)
     return SceneOut(
         id=scene.id,
         screenplay_id=scene.screenplay_id,
@@ -91,7 +95,7 @@ def _scene_out(scene: Scene) -> SceneOut:
         location_entity_id=scene.location_entity_id,
         time_of_day=scene.time_of_day,
         heading_modifier=scene.heading_modifier,
-        content=scene.content,
+        content=content,
         content_hash=scene.content_hash,
         created_at=scene.created_at,
         updated_at=scene.updated_at,
@@ -168,11 +172,13 @@ async def create_scene(
             await db.flush()
             location_entity_id = new_loc.id
 
+    new_content = payload.content.model_dump()
     scene = Scene(
         screenplay_id=screenplay_id,
         order_key=new_order,
-        content=payload.content.model_dump(),
-        content_hash=compute_content_hash(payload.content.model_dump()),
+        content=new_content,
+        content_hash=compute_content_hash(new_content),
+        node_order=extract_order(new_content),
         int_ext=heading["int_ext"],
         location_entity_id=location_entity_id,
         time_of_day=heading["time_of_day"],
@@ -187,7 +193,7 @@ async def create_scene(
     await _rebuild_scene_entities(db, scene.id)
 
     settings = request.app.state.settings
-    if settings.nvidia_api_key:
+    if settings.gemini_api_key:
         background_tasks.add_task(
             auto_analyze, settings, request.app.state.sessionmaker, scene.id
         )
@@ -257,6 +263,20 @@ async def update_scene(
 
         new_hash = compute_content_hash(new_content)
         if new_hash != scene.content_hash:
+            incoming_order = extract_order(new_content)
+            prev_order = scene.node_order or incoming_order
+            canonical = reconcile_order(prev_order, incoming_order)
+            if incoming_order != canonical:
+                breadcrumb(
+                    "content",
+                    "node order repaired",
+                    scene_id=str(scene_id),
+                    repaired_count=sum(
+                        1 for a, b in zip(incoming_order, canonical) if a != b
+                    ),
+                    order_length=len(canonical),
+                )
+            scene.node_order = canonical
             scene.content = new_content
             scene.content_hash = new_hash
 
@@ -409,6 +429,7 @@ async def duplicate_scene(
         order_key=new_order,
         content=scene.content,
         content_hash=scene.content_hash,
+        node_order=scene.node_order,
         int_ext=scene.int_ext,
         location_entity_id=scene.location_entity_id,
         time_of_day=scene.time_of_day,

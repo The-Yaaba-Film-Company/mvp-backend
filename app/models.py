@@ -155,6 +155,7 @@ class Scene(TimestampedMixin, Base):
     heading_modifier: Mapped[str | None] = mapped_column(Text, nullable=True)
     content: Mapped[dict] = mapped_column(JSON, nullable=False)
     content_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    node_order: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     last_ai_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     screenplay: Mapped[Screenplay] = relationship(back_populates="scenes")

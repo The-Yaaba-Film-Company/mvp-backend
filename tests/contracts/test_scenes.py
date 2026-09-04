@@ -363,6 +363,132 @@ class TestTiptapContentShape:
         assert resp.status_code == 201, resp.text
 
 
+class TestSceneNodeOrder:
+    """The backend persists a canonical per-node order so a known node a client
+    sends at the tail of a PATCH is pulled back to its prior position instead of
+    degrading into a "queue appended to the bottom"."""
+
+    def _ids(self, content):
+        return [
+            n.get("attrs", {}).get("id")
+            for n in content["content"]
+            if n.get("type") in ("action", "dialogue", "parenthetical", "shot", "general")
+        ]
+
+    async def _create_ordered_scene(self, client, screenplay_id, csrf):
+        content = {
+            "type": "doc",
+            "content": [
+                {"type": "sceneHeading", "attrs": {"intExt": "INT", "location": "A", "timeOfDay": "DAY"}},
+                {"type": "action", "attrs": {"id": "a-1"}, "text": "One"},
+                {"type": "action", "attrs": {"id": "a-2"}, "text": "Two"},
+                {"type": "action", "attrs": {"id": "a-3"}, "text": "Three"},
+            ],
+        }
+        resp = await client.post(
+            f"/api/screenplays/{screenplay_id}/scenes",
+            json={"content": content},
+            headers=csrf_headers(csrf),
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()
+
+    async def test_known_node_moved_to_tail_is_pulled_back_by_response(self, client):
+        auth, _project_id, screenplay_id = await _setup_project_screenplay(client)
+        scene = await self._create_ordered_scene(client, screenplay_id, auth["csrf"])
+        scene_id = scene["id"]
+
+        swapped = {
+            "type": "doc",
+            "content": [
+                {"type": "sceneHeading", "attrs": {"intExt": "INT", "location": "A", "timeOfDay": "DAY"}},
+                {"type": "action", "attrs": {"id": "a-2"}, "text": "Two"},
+                {"type": "action", "attrs": {"id": "a-3"}, "text": "Three"},
+                {"type": "action", "attrs": {"id": "a-1"}, "text": "One"},
+            ],
+        }
+        resp = await client.patch(
+            f"/api/scenes/{scene_id}",
+            json={"content": swapped},
+            headers=csrf_headers(auth["csrf"]),
+        )
+        assert resp.status_code == 200, resp.text
+        assert self._ids(resp.json()["content"]) == ["a-1", "a-2", "a-3"]
+
+    async def test_known_node_reorder_survives_get(self, client):
+        auth, _project_id, screenplay_id = await _setup_project_screenplay(client)
+        scene = await self._create_ordered_scene(client, screenplay_id, auth["csrf"])
+        scene_id = scene["id"]
+
+        swapped = {
+            "type": "doc",
+            "content": [
+                {"type": "sceneHeading", "attrs": {"intExt": "INT", "location": "A", "timeOfDay": "DAY"}},
+                {"type": "action", "attrs": {"id": "a-2"}, "text": "Two"},
+                {"type": "action", "attrs": {"id": "a-3"}, "text": "Three"},
+                {"type": "action", "attrs": {"id": "a-1"}, "text": "One"},
+            ],
+        }
+        await client.patch(
+            f"/api/scenes/{scene_id}",
+            json={"content": swapped},
+            headers=csrf_headers(auth["csrf"]),
+        )
+
+        get_resp = await client.get(f"/api/scenes/{scene_id}")
+        assert get_resp.status_code == 200
+        assert self._ids(get_resp.json()["content"]) == ["a-1", "a-2", "a-3"]
+
+    async def test_new_node_inserted_mid_document_keeps_position(self, client):
+        auth, _project_id, screenplay_id = await _setup_project_screenplay(client)
+        scene = await self._create_ordered_scene(client, screenplay_id, auth["csrf"])
+        scene_id = scene["id"]
+
+        inserted = {
+            "type": "doc",
+            "content": [
+                {"type": "sceneHeading", "attrs": {"intExt": "INT", "location": "A", "timeOfDay": "DAY"}},
+                {"type": "action", "attrs": {"id": "a-1"}, "text": "One"},
+                {"type": "action", "attrs": {"id": "x-9"}, "text": "NEW"},
+                {"type": "action", "attrs": {"id": "a-2"}, "text": "Two"},
+                {"type": "action", "attrs": {"id": "a-3"}, "text": "Three"},
+            ],
+        }
+        resp = await client.patch(
+            f"/api/scenes/{scene_id}",
+            json={"content": inserted},
+            headers=csrf_headers(auth["csrf"]),
+        )
+        assert resp.status_code == 200, resp.text
+        assert self._ids(resp.json()["content"]) == ["a-1", "x-9", "a-2", "a-3"]
+
+    async def test_deleting_node_removes_it_and_keeps_rest_order(self, client):
+        auth, _project_id, screenplay_id = await _setup_project_screenplay(client)
+        scene = await self._create_ordered_scene(client, screenplay_id, auth["csrf"])
+        scene_id = scene["id"]
+
+        deleted = {
+            "type": "doc",
+            "content": [
+                {"type": "sceneHeading", "attrs": {"intExt": "INT", "location": "A", "timeOfDay": "DAY"}},
+                {"type": "action", "attrs": {"id": "a-1"}, "text": "One"},
+                {"type": "action", "attrs": {"id": "a-3"}, "text": "Three"},
+            ],
+        }
+        resp = await client.patch(
+            f"/api/scenes/{scene_id}",
+            json={"content": deleted},
+            headers=csrf_headers(auth["csrf"]),
+        )
+        assert resp.status_code == 200, resp.text
+        assert self._ids(resp.json()["content"]) == ["a-1", "a-3"]
+
+    async def test_scene_fields_exclude_node_order(self, client):
+        auth, _project_id, screenplay_id = await _setup_project_screenplay(client)
+        scene = await self._create_ordered_scene(client, screenplay_id, auth["csrf"])
+        assert set(scene.keys()) == SCENE_FIELDS
+
+
 class TestSceneDelete:
     async def test_delete_scene(self, client):
         auth, project_id, screenplay_id = await _setup_project_screenplay(client)

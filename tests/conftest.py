@@ -46,7 +46,8 @@ async def app(db_engine):
     settings = Settings(
         database_url=TEST_DATABASE_URL,
         session_cookie_secure=False,
-        nvidia_api_key="",
+        gemini_api_key="",
+        gemini_model="gemini-3.6-flash",
     )
     return create_app(settings)
 
