@@ -137,6 +137,7 @@ async def create_scene(
         raise HTTPException(status_code=404, detail="Screenplay not found.")
     await require_project_role("editor")(sp.project_id, principal, db)
 
+
     try:
         validate_tiptap_content(payload.content.model_dump())
     except ContentValidationError as e:

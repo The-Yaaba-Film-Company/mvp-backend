@@ -18,7 +18,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, relationship, DeclarativeBase, MappedColumn
 
 
 class Base(DeclarativeBase):
@@ -26,10 +26,10 @@ class Base(DeclarativeBase):
 
 
 class TimestampedMixin:
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = MappedColumn(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at: Mapped[datetime] = mapped_column(
+    updated_at: Mapped[datetime] = MappedColumn(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -41,37 +41,37 @@ PROJECT_ROLE = ("owner", "editor", "viewer")
 
 
 def uuid_pk() -> Mapped:
-    return mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    return MappedColumn(UUID(as_uuid=True), primary_key=True, default=uuid4)
 
 
 class User(TimestampedMixin, Base):
     __tablename__ = "users"
 
     id: Mapped[object] = uuid_pk()
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    email: Mapped[str] = MappedColumn(String(255), unique=True, nullable=False)
+    password_hash: Mapped[str] = MappedColumn(Text, nullable=False)
+    display_name: Mapped[str] = MappedColumn(String(255), nullable=False)
+    is_active: Mapped[bool] = MappedColumn(Boolean, nullable=False, default=True)
 
 
 class Session(TimestampedMixin, Base):
     __tablename__ = "sessions"
 
     id: Mapped[object] = uuid_pk()
-    user_id: Mapped[object] = mapped_column(
+    user_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    csrf_secret: Mapped[str] = mapped_column(Text, nullable=False)
-    user_agent: Mapped[str] = mapped_column(String(512), nullable=True)
-    ip_address: Mapped[str] = mapped_column(String(45), nullable=True)
-    last_seen_at: Mapped[datetime] = mapped_column(
+    csrf_secret: Mapped[str] = MappedColumn(Text, nullable=False)
+    user_agent: Mapped[str] = MappedColumn(String(512), nullable=True)
+    ip_address: Mapped[str] = MappedColumn(String(45), nullable=True)
+    last_seen_at: Mapped[datetime] = MappedColumn(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    revoked_at: Mapped[datetime] = mapped_column(
+    expires_at: Mapped[datetime] = MappedColumn(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime] = MappedColumn(
         DateTime(timezone=True), nullable=True
     )
 
@@ -82,9 +82,9 @@ class Project(TimestampedMixin, Base):
     __tablename__ = "projects"
 
     id: Mapped[object] = uuid_pk()
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=True)
-    owner_id: Mapped[object] = mapped_column(
+    title: Mapped[str] = MappedColumn(String(255), nullable=False)
+    description: Mapped[str] = MappedColumn(Text, nullable=True)
+    owner_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -94,18 +94,18 @@ class Project(TimestampedMixin, Base):
 class ProjectMember(Base):
     __tablename__ = "project_members"
 
-    project_id: Mapped[object] = mapped_column(
+    project_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    user_id: Mapped[object] = mapped_column(
+    user_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    role: Mapped[str] = mapped_column(String(16), nullable=False, default="editor")
-    added_at: Mapped[datetime] = mapped_column(
+    role: Mapped[str] = MappedColumn(String(16), nullable=False, default="editor")
+    added_at: Mapped[datetime] = MappedColumn(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
@@ -120,13 +120,13 @@ class Screenplay(TimestampedMixin, Base):
     __tablename__ = "screenplays"
 
     id: Mapped[object] = uuid_pk()
-    project_id: Mapped[object] = mapped_column(
+    project_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    title: Mapped[str] = MappedColumn(String(255), nullable=False)
+    locked_at: Mapped[datetime | None] = MappedColumn(DateTime(timezone=True), nullable=True)
 
     project: Mapped[Project] = relationship(lazy="joined")
     scenes: Mapped[list["Scene"]] = relationship(
@@ -138,25 +138,25 @@ class Scene(TimestampedMixin, Base):
     __tablename__ = "scenes"
 
     id: Mapped[object] = uuid_pk()
-    screenplay_id: Mapped[object] = mapped_column(
+    screenplay_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("screenplays.id", ondelete="CASCADE"),
         nullable=False,
     )
-    order_key: Mapped[float] = mapped_column(Float, nullable=False)
-    number: Mapped[str | None] = mapped_column(Text, nullable=True)
-    number_suffix: Mapped[str | None] = mapped_column(Text, nullable=True)
-    locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    int_ext: Mapped[IntExt | None] = mapped_column(Enum(IntExt, name="int_ext", create_constraint=True), nullable=True)
-    location_entity_id: Mapped[object | None] = mapped_column(
+    order_key: Mapped[float] = MappedColumn(Float, nullable=False)
+    number: Mapped[str | None] = MappedColumn(Text, nullable=True)
+    number_suffix: Mapped[str | None] = MappedColumn(Text, nullable=True)
+    locked: Mapped[bool] = MappedColumn(Boolean, nullable=False, default=False)
+    int_ext: Mapped[IntExt | None] = MappedColumn(Enum(IntExt, name="int_ext", create_constraint=True), nullable=True)
+    location_entity_id: Mapped[object | None] = MappedColumn(
         UUID(as_uuid=True), nullable=True
     )
-    time_of_day: Mapped[str | None] = mapped_column(Text, nullable=True)
-    heading_modifier: Mapped[str | None] = mapped_column(Text, nullable=True)
-    content: Mapped[dict] = mapped_column(JSON, nullable=False)
-    content_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    node_order: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
-    last_ai_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    time_of_day: Mapped[str | None] = MappedColumn(Text, nullable=True)
+    heading_modifier: Mapped[str | None] = MappedColumn(Text, nullable=True)
+    content: Mapped[dict] = MappedColumn(JSON, nullable=False)
+    content_hash: Mapped[str] = MappedColumn(Text, nullable=False)
+    node_order: Mapped[list[str]] = MappedColumn(ARRAY(String), nullable=False, default=list)
+    last_ai_hash: Mapped[str | None] = MappedColumn(Text, nullable=True)
 
     screenplay: Mapped[Screenplay] = relationship(back_populates="scenes")
 
@@ -185,15 +185,15 @@ class Entity(TimestampedMixin, Base):
     __tablename__ = "entities"
 
     id: Mapped[object] = uuid_pk()
-    project_id: Mapped[object] = mapped_column(
+    project_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    entity_type: Mapped[EntityType] = mapped_column(Enum(EntityType, name="entity_type", create_constraint=True), nullable=False)
-    canonical_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    aliases: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=[])
-    attributes: Mapped[dict] = mapped_column(JSON, nullable=False, default={})
+    entity_type: Mapped[EntityType] = MappedColumn(Enum(EntityType, name="entity_type", create_constraint=True), nullable=False)
+    canonical_name: Mapped[str] = MappedColumn(String(255), nullable=False)
+    aliases: Mapped[list[str]] = MappedColumn(ARRAY(String), nullable=False, default=[])
+    attributes: Mapped[dict] = MappedColumn(JSON, nullable=False, default={})
 
     __table_args__ = (
         Index("entities_name_trgm", "canonical_name", postgresql_using="gin", postgresql_ops={"canonical_name": "gin_trgm_ops"}),
@@ -205,29 +205,29 @@ class Annotation(TimestampedMixin, Base):
     __tablename__ = "annotations"
 
     id: Mapped[object] = uuid_pk()
-    scene_id: Mapped[object] = mapped_column(
+    scene_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("scenes.id", ondelete="CASCADE"),
         nullable=False,
     )
-    node_id: Mapped[str] = mapped_column(Text, nullable=False)
-    start_offset: Mapped[int] = mapped_column(nullable=False)
-    end_offset: Mapped[int] = mapped_column(nullable=False)
-    entity_id: Mapped[object] = mapped_column(
+    node_id: Mapped[str] = MappedColumn(Text, nullable=False)
+    start_offset: Mapped[int] = MappedColumn(nullable=False)
+    end_offset: Mapped[int] = MappedColumn(nullable=False)
+    entity_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("entities.id", ondelete="CASCADE"),
         nullable=False,
     )
-    source: Mapped[str] = mapped_column(Text, nullable=False)
-    created_by: Mapped[object | None] = mapped_column(
+    source: Mapped[str] = MappedColumn(Text, nullable=False)
+    created_by: Mapped[object | None] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = MappedColumn(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at: Mapped[datetime] = mapped_column(
+    updated_at: Mapped[datetime] = MappedColumn(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
@@ -235,72 +235,72 @@ class Annotation(TimestampedMixin, Base):
 class SceneEntity(Base):
     __tablename__ = "scene_entities"
 
-    scene_id: Mapped[object] = mapped_column(
+    scene_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("scenes.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    entity_id: Mapped[object] = mapped_column(
+    entity_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("entities.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    occurrence_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    occurrence_count: Mapped[int] = MappedColumn(nullable=False, default=0)
 
 
 class SceneMetrics(Base):
     __tablename__ = "scene_metrics"
 
-    screenplay_id: Mapped[object] = mapped_column(
+    screenplay_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("screenplays.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    scene_id: Mapped[object] = mapped_column(
+    scene_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("scenes.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    start_page: Mapped[int] = mapped_column(nullable=False)
-    end_page: Mapped[int] = mapped_column(nullable=False)
-    page_length: Mapped[float] = mapped_column(nullable=False)
+    start_page: Mapped[int] = MappedColumn(nullable=False)
+    end_page: Mapped[int] = MappedColumn(nullable=False)
+    page_length: Mapped[float] = MappedColumn(nullable=False)
 
 
 class AiSuggestion(Base):
     __tablename__ = "ai_suggestions"
 
     id: Mapped[object] = uuid_pk()
-    scene_id: Mapped[object] = mapped_column(
+    scene_id: Mapped[object] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("scenes.id", ondelete="CASCADE"),
         nullable=False,
     )
-    node_id: Mapped[str] = mapped_column(Text, nullable=False)
-    matched_text: Mapped[str] = mapped_column(Text, nullable=False)
-    start_offset: Mapped[int | None] = mapped_column(nullable=True)
-    end_offset: Mapped[int | None] = mapped_column(nullable=True)
-    suggested_type: Mapped[EntityType] = mapped_column(
+    node_id: Mapped[str] = MappedColumn(Text, nullable=False)
+    matched_text: Mapped[str] = MappedColumn(Text, nullable=False)
+    start_offset: Mapped[int | None] = MappedColumn(nullable=True)
+    end_offset: Mapped[int | None] = MappedColumn(nullable=True)
+    suggested_type: Mapped[EntityType] = MappedColumn(
         Enum(EntityType, name="entity_type", create_constraint=True), nullable=False
     )
-    suggested_name: Mapped[str] = mapped_column(Text, nullable=False)
-    matched_entity_id: Mapped[object | None] = mapped_column(
+    suggested_name: Mapped[str] = MappedColumn(Text, nullable=False)
+    matched_entity_id: Mapped[object | None] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("entities.id", ondelete="SET NULL"),
         nullable=True,
     )
-    confidence: Mapped[float | None] = mapped_column(sa.Numeric(precision=4, scale=3), nullable=True)
-    model: Mapped[str] = mapped_column(Text, nullable=False)
-    prompt_version: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
-    reviewed_by: Mapped[object | None] = mapped_column(
+    confidence: Mapped[float | None] = MappedColumn(sa.Numeric(precision=4, scale=3), nullable=True)
+    model: Mapped[str] = MappedColumn(Text, nullable=False)
+    prompt_version: Mapped[str] = MappedColumn(Text, nullable=False)
+    status: Mapped[str] = MappedColumn(Text, nullable=False, default="pending")
+    reviewed_by: Mapped[object | None] = MappedColumn(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    reviewed_at: Mapped[datetime | None] = mapped_column(
+    reviewed_at: Mapped[datetime | None] = MappedColumn(
         DateTime(timezone=True), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = MappedColumn(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 

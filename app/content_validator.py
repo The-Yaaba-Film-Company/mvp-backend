@@ -62,11 +62,10 @@ def _validate_children(nodes: list[dict[str, Any]], *, allow_doc: bool) -> None:
         content_val = node.get("content")
         text_val = node.get("text")
 
+
         if node_type in ATOM_TYPES:
             if text_val is not None:
                 raise ContentValidationError(f"Atom node '{node_type}' at index {idx} must not have 'text'.")
-            if content_val is not None:
-                raise ContentValidationError(f"Atom node '{node_type}' at index {idx} must not have 'content'.")
             _validate_atom_attrs(node_type, attrs, idx)
         elif node_type in TEXT_BLOCK_TYPES:
             if not isinstance(text_val, str) and not _is_text_content(content_val):
