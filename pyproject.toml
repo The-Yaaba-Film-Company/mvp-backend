@@ -8,7 +8,6 @@ dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "sqlalchemy[asyncio]",
-    "psycopg2",
     "asyncpg",
     "alembic",
     "pydantic",
